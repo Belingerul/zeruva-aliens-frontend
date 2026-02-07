@@ -3,7 +3,13 @@
 import { useState, useEffect } from "react";
 import { motion, useAnimation } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { spin, getRandomAliens, API_BASE_URL } from "../api";
+import {
+  spin,
+  getRandomAliens,
+  API_BASE_URL,
+  buyEgg,
+  confirmBuyEgg,
+} from "../api";
 
 type Tier = "Nothing" | "Common" | "Rare" | "Epic" | "Legendary";
 
@@ -105,6 +111,46 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
       });
     });
   };
+
+  async function buyAndSpin(eggType: "basic" | "rare" | "ultra") {
+    if (isSpinning) return;
+
+    if (!wallet.connected || !wallet.publicKey) {
+      alert("Please connect wallet.");
+      onClose();
+      return;
+    }
+
+    try {
+      const walletAddress = wallet.publicKey.toBase58();
+      const { serialized } = await buyEgg(eggType);
+
+      const { Transaction, Connection } = await import("@solana/web3.js");
+      const connection = new Connection(
+        process.env.VITE_RPC_URL || "https://api.devnet.solana.com",
+        "confirmed",
+      );
+
+      const tx = Transaction.from(Buffer.from(serialized, "base64"));
+
+      if (!wallet.signTransaction) {
+        alert("Wallet doesn't support transaction signing");
+        return;
+      }
+
+      const signed = await wallet.signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize());
+      await connection.confirmTransaction(sig, "confirmed");
+
+      await confirmBuyEgg(eggType, sig);
+
+      // After crediting, run the normal spin flow
+      await startSpin(eggType);
+    } catch (e: any) {
+      console.error("Buy egg failed", e);
+      alert(`Buy egg failed: ${e.message || "Unknown error"}`);
+    }
+  }
 
   async function startSpin(eggType: "basic" | "rare" | "ultra") {
     if (isSpinning) return;
@@ -256,26 +302,26 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
         <div className="flex flex-wrap gap-3 sm:gap-4 mb-4 sm:mb-6">
           <button
             disabled={isSpinning || !wallet.connected}
-            onClick={() => startSpin("basic")}
+            onClick={() => buyAndSpin("basic")}
             className="px-6 py-3 bg-green-600 rounded-lg text-white font-semibold disabled:opacity-50"
           >
-            Basic Egg
+            Basic Egg ($20)
           </button>
 
           <button
             disabled={isSpinning || !wallet.connected}
-            onClick={() => startSpin("rare")}
+            onClick={() => buyAndSpin("rare")}
             className="px-6 py-3 bg-blue-600 rounded-lg text-white font-semibold disabled:opacity-50"
           >
-            Rare Egg
+            Rare Egg ($40)
           </button>
 
           <button
             disabled={isSpinning || !wallet.connected}
-            onClick={() => startSpin("ultra")}
+            onClick={() => buyAndSpin("ultra")}
             className="px-6 py-3 bg-purple-600 rounded-lg text-white font-semibold disabled:opacity-50"
           >
-            Ultra Egg
+            Ultra Egg ($60)
           </button>
         </div>
 

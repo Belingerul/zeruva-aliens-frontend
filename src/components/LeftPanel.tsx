@@ -1,7 +1,7 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
-import { buySpaceship } from "../api";
+import { buySpaceship, confirmBuySpaceship } from "../api";
 import RewardsCard from "./RewardsCard";
 import { useRef, useEffect } from "react";
 
@@ -44,6 +44,8 @@ export default function LeftPanel({
       const signed = await wallet.signTransaction(tx);
       const signature = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(signature, "confirmed");
+
+      await confirmBuySpaceship(level, signature);
 
       alert(`Spaceship purchased! Tx: ${signature}`);
     } catch (error: any) {
