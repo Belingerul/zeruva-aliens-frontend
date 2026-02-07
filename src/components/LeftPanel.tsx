@@ -47,6 +47,9 @@ export default function LeftPanel({
 
       await confirmBuySpaceship(level, signature);
 
+      // Notify other components to refresh ship state
+      window.dispatchEvent(new Event("zeruva_ship_changed"));
+
       alert(`Spaceship purchased! Tx: ${signature}`);
     } catch (error: any) {
       console.error("Purchase failed:", error);

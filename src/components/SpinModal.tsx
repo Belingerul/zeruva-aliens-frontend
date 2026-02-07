@@ -138,8 +138,27 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
         return;
       }
 
-      const signed = await wallet.signTransaction(tx);
-      const sig = await connection.sendRawTransaction(signed.serialize());
+      // Make sure the user has devnet SOL for fees + payment
+      const balance = await connection.getBalance(
+        wallet.publicKey,
+        "confirmed",
+      );
+      if (balance < 0.001 * 1e9) {
+        alert(
+          "You have 0 SOL (devnet). Get devnet SOL (airdrop) then try again.",
+        );
+        return;
+      }
+
+      // Prefer wallet-adapter sendTransaction when available
+      let sig: string;
+      if (wallet.sendTransaction) {
+        sig = await wallet.sendTransaction(tx, connection);
+      } else {
+        const signed = await wallet.signTransaction(tx);
+        sig = await connection.sendRawTransaction(signed.serialize());
+      }
+
       await connection.confirmTransaction(sig, "confirmed");
 
       await confirmBuyEgg(eggType, sig);

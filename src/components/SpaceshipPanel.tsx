@@ -47,6 +47,16 @@ export default function SpaceshipPanel({
     loadShipData();
   }, [publicKey]);
 
+  useEffect(() => {
+    const onShipChanged = () => {
+      loadShipData();
+    };
+    window.addEventListener("zeruva_ship_changed", onShipChanged);
+    return () => {
+      window.removeEventListener("zeruva_ship_changed", onShipChanged);
+    };
+  }, [publicKey]);
+
   const slotCount = ship?.maxSlots ?? 2;
   const slots = ship?.slots ?? [];
 
@@ -75,15 +85,8 @@ export default function SpaceshipPanel({
   };
 
   const handleUpgradeShip = async () => {
-    if (!publicKey || loading || !ship || ship.level >= 3) return;
-
-    try {
-      await upgradeShipLevel(publicKey.toString(), ship.level + 1);
-      await loadShipData();
-    } catch (err) {
-      console.error("Failed to upgrade ship:", err);
-      alert("Failed to upgrade ship");
-    }
+    // Disabled for now: upgrading must be paid on-chain like ship purchase.
+    alert("Ship upgrades are coming soon (paid on-chain). ");
   };
 
   if (!publicKey) {
@@ -168,14 +171,14 @@ export default function SpaceshipPanel({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleUpgradeShip}
-            disabled={loading || !ship || ship.level >= 3}
+            disabled={true}
             className="w-full py-3 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold
                      shadow-[0_0_20px_rgba(234,179,8,0.5)] hover:shadow-[0_0_30px_rgba(234,179,8,0.7)]
                      transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {ship && ship.level >= 3
               ? "Max Level"
-              : `Upgrade Ship (Level ${(ship?.level ?? 1) + 1})`}
+              : "Upgrade Ship (Coming Soon)"}
           </motion.button>
         </div>
       </div>
