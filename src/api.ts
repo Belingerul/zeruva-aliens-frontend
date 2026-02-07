@@ -43,6 +43,41 @@ export const spin = async (
   });
 };
 
+export const buyEgg = async (eggType: "basic" | "rare" | "ultra") => {
+  return await apiRequest<{
+    serialized: string;
+    amountSol: number;
+    admin: string;
+    eggType: "basic" | "rare" | "ultra";
+  }>("/buy-egg", {
+    method: "POST",
+    body: JSON.stringify({ eggType }),
+  });
+};
+
+export const confirmBuyEgg = async (
+  eggType: "basic" | "rare" | "ultra",
+  signature: string,
+) => {
+  return await apiRequest<{ ok: true; eggType: string; credited: number }>(
+    "/confirm-buy-egg",
+    {
+      method: "POST",
+      body: JSON.stringify({ eggType, signature }),
+    },
+  );
+};
+
+export const confirmBuySpaceship = async (level: number, signature: string) => {
+  return await apiRequest<{ ok: true; level: number }>(
+    "/confirm-buy-spaceship",
+    {
+      method: "POST",
+      body: JSON.stringify({ level, signature }),
+    },
+  );
+};
+
 export const getShip = async (wallet: string): Promise<Ship> => {
   const shipWithSlots = await apiRequest<ShipWithSlots>(`/ship/${wallet}`);
   return { level: shipWithSlots.level };
