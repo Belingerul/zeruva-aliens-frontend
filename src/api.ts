@@ -181,9 +181,9 @@ export const buySpaceship = async (
 };
 
 // Configure backend URL via NEXT_PUBLIC_API_BASE_URL.
-// Local dev default assumes backend runs on :3000 and already prefixes /api.
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3005/api";
+// Default to same-origin `/api` so Next.js can rewrite to the real backend (see next.config.mjs).
+// This avoids browser CORS issues (especially on trycloudflare / Cloudflare Pages).
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api";
 
 // ===== Auth token storage =====
 const TOKEN_KEY = "zeruva_jwt";
