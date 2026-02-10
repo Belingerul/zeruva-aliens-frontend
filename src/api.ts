@@ -46,9 +46,15 @@ export const spin = async (
 export const buyEgg = async (eggType: "basic" | "rare" | "ultra") => {
   return await apiRequest<{
     serialized: string;
+    intentId: string;
     amountSol: number;
+    lamports: number;
+    solUsd: number;
+    solUsdSource: string;
     admin: string;
     eggType: "basic" | "rare" | "ultra";
+    priceUsd: number;
+    expiresAt: string;
   }>("/buy-egg", {
     method: "POST",
     body: JSON.stringify({ eggType }),
@@ -58,22 +64,27 @@ export const buyEgg = async (eggType: "basic" | "rare" | "ultra") => {
 export const confirmBuyEgg = async (
   eggType: "basic" | "rare" | "ultra",
   signature: string,
+  intentId: string,
 ) => {
-  return await apiRequest<{ ok: true; eggType: string; credited: number }>(
+  return await apiRequest<{ ok: true; eggType: string; credited: number; signature: string; amountSol: number }>(
     "/confirm-buy-egg",
     {
       method: "POST",
-      body: JSON.stringify({ eggType, signature }),
+      body: JSON.stringify({ eggType, signature, intentId }),
     },
   );
 };
 
-export const confirmBuySpaceship = async (level: number, signature: string) => {
-  return await apiRequest<{ ok: true; level: number }>(
+export const confirmBuySpaceship = async (
+  level: number,
+  signature: string,
+  intentId: string,
+) => {
+  return await apiRequest<{ ok: true; level: number; signature: string }>(
     "/confirm-buy-spaceship",
     {
       method: "POST",
-      body: JSON.stringify({ level, signature }),
+      body: JSON.stringify({ level, signature, intentId }),
     },
   );
 };
@@ -152,9 +163,15 @@ export const buySpaceship = async (
   level: number,
 ): Promise<{
   serialized: string;
+  intentId: string;
   amountSol: number;
+  lamports: number;
+  solUsd: number;
+  solUsdSource: string;
   admin: string;
   level: number;
+  priceUsd: number;
+  expiresAt: string;
 }> => {
   // wallet is derived from the auth token on the backend
   return await apiRequest(`/buy-spaceship`, {

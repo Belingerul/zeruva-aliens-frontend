@@ -26,7 +26,7 @@ export default function LeftPanel({
 
     try {
       const walletAddress = wallet.publicKey.toBase58();
-      const { serialized } = await buySpaceship(walletAddress, level);
+      const { serialized, intentId } = await buySpaceship(walletAddress, level);
 
       const { Transaction, Connection } = await import("@solana/web3.js");
       const connection = new Connection(
@@ -45,7 +45,7 @@ export default function LeftPanel({
       const signature = await connection.sendRawTransaction(signed.serialize());
       await connection.confirmTransaction(signature, "confirmed");
 
-      await confirmBuySpaceship(level, signature);
+      await confirmBuySpaceship(level, signature, intentId);
 
       // Notify other components to refresh ship state
       window.dispatchEvent(new Event("zeruva_ship_changed"));

@@ -123,7 +123,7 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
 
     try {
       const walletAddress = wallet.publicKey.toBase58();
-      const { serialized } = await buyEgg(eggType);
+      const { serialized, intentId, amountSol, solUsd, solUsdSource } = await buyEgg(eggType);
 
       const { Transaction, Connection } = await import("@solana/web3.js");
       const connection = new Connection(
@@ -161,7 +161,8 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
 
       await connection.confirmTransaction(sig, "confirmed");
 
-      await confirmBuyEgg(eggType, sig);
+      // Confirm with backend using the intentId (locks in the SOL/USD quote used to build the tx)
+      await confirmBuyEgg(eggType, sig, intentId);
 
       // After crediting, run the normal spin flow
       await startSpin(eggType);
