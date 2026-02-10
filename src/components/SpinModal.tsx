@@ -48,6 +48,13 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
     db_id: number | null;
   } | null>(null);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [lastQuote, setLastQuote] = useState<{
+    eggType: "basic" | "rare" | "ultra";
+    priceUsd: number;
+    amountSol: number;
+    solUsd: number;
+    solUsdSource: string;
+  } | null>(null);
 
   const controls = useAnimation();
 
@@ -123,7 +130,14 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
 
     try {
       const walletAddress = wallet.publicKey.toBase58();
-      const { serialized, intentId, amountSol, solUsd, solUsdSource } = await buyEgg(eggType);
+      const { serialized, intentId, amountSol, solUsd, solUsdSource, priceUsd } = await buyEgg(eggType);
+
+      setLastQuote({ eggType, priceUsd, amountSol, solUsd, solUsdSource });
+
+      const ok = window.confirm(
+        `Confirm purchase:\n\n$${priceUsd} ≈ ${amountSol.toFixed(4)} SOL\n(SOL/USD: ${solUsd.toFixed(2)} via ${solUsdSource})\n\nProceed to sign the transaction?`,
+      );
+      if (!ok) return;
 
       const { Transaction, Connection } = await import("@solana/web3.js");
       const connection = new Connection(
@@ -319,7 +333,7 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
           Choose Your Egg
         </h2>
 
-        <div className="flex flex-wrap gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="flex flex-wrap gap-3 sm:gap-4 mb-3 sm:mb-4">
           <button
             disabled={isSpinning || !wallet.connected}
             onClick={() => buyAndSpin("basic")}
@@ -344,6 +358,16 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
             Ultra Egg ($60)
           </button>
         </div>
+
+        {lastQuote && (
+          <div className="mb-4 rounded-lg border border-gray-700 bg-black/40 px-4 py-3 text-sm text-gray-200">
+            <div className="font-semibold text-white">Last price quote</div>
+            <div>
+              ${lastQuote.priceUsd} ≈ {lastQuote.amountSol.toFixed(4)} SOL
+              <span className="text-gray-400"> (SOL/USD: {lastQuote.solUsd.toFixed(2)} via {lastQuote.solUsdSource})</span>
+            </div>
+          </div>
+        )}
 
         {isSpinning && !imagesLoaded && (
           <div className="text-center text-cyan-400 mb-4">
