@@ -11,6 +11,7 @@ interface RewardsState {
   totalClaimedPoints: number; // total points claimed so far (authoritative from backend)
   pendingEarnings: number; // pending earnings from backend (authoritative)
   lastClaimAt: Date | null;
+  nextClaimAt: Date | null;
   refresh: () => Promise<void>;
   getCalculatedValue: () => number; // Get current calculated value for claim validation
   resetAfterClaim: () => void; // immediately reset lastClaimAt to current time
@@ -27,6 +28,7 @@ export function useRewards(walletAddress: string | null): RewardsState {
   const [displayPendingEarnings, setDisplayPendingEarnings] = useState(0); // Display-only pending (may be adjusted)
   const [lastClaimAt, setLastClaimAt] = useState<Date | null>(null); // Display timestamp (may be adjusted for visual continuity)
   const [serverLastClaimAt, setServerLastClaimAt] = useState<Date | null>(null); // Authoritative server timestamp (for claim validation)
+  const [nextClaimAt, setNextClaimAt] = useState<Date | null>(null);
 
   // High-precision live counter using requestAnimationFrame for smooth updates
   const [livePoints, setLivePoints] = useState(0);
@@ -204,6 +206,7 @@ export function useRewards(walletAddress: string | null): RewardsState {
       const newServerLastClaimAt = data.last_claim_at
         ? new Date(data.last_claim_at)
         : null;
+      const newNextClaimAt = data.next_claim_at ? new Date(data.next_claim_at) : null;
 
       // If backend doesn't return last_claim_at but ROI is active, initialize a local timestamp
       // This prevents the animation loop from stalling after ROI changes from 0 -> >0
@@ -262,6 +265,7 @@ export function useRewards(walletAddress: string | null): RewardsState {
       setPendingEarnings(newPendingEarnings);
       setDisplayPendingEarnings(adjustedPendingEarnings);
       setServerLastClaimAt(newServerLastClaimAt);
+      setNextClaimAt(newNextClaimAt);
       setLastClaimAt(normalizedLastClaimAt);
       serverLastClaimAtRef.current = newServerLastClaimAt;
 
@@ -489,6 +493,7 @@ export function useRewards(walletAddress: string | null): RewardsState {
       setTotalClaimedPoints(0);
       setLastClaimAt(null);
       setServerLastClaimAt(null);
+      setNextClaimAt(null);
       serverLastClaimAtRef.current = null;
       setError(null);
       setPendingEarnings(0);
@@ -534,6 +539,7 @@ export function useRewards(walletAddress: string | null): RewardsState {
     totalClaimedPoints,
     pendingEarnings,
     lastClaimAt,
+    nextClaimAt,
     refresh,
     getCalculatedValue,
     resetAfterClaim,

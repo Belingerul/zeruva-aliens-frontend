@@ -9,12 +9,13 @@ import { apiRequest } from "../api";
 interface RewardsCardProps {
   onRefreshReady?: (refreshFn: () => Promise<void>) => void;
   onRoiChangeReady?: (onRoiChangeFn: () => void) => void;
+  onNextClaimAtChange?: (nextClaimAt: Date | null) => void;
 }
 
 const RewardsCard = forwardRef<
   { refresh: () => Promise<void> } | undefined,
   RewardsCardProps
->(({ onRefreshReady, onRoiChangeReady }, ref) => {
+>(({ onRefreshReady, onRoiChangeReady, onNextClaimAtChange }, ref) => {
   const wallet = useWallet();
   const walletAddress = wallet.publicKey?.toBase58() ?? null;
 
@@ -23,6 +24,7 @@ const RewardsCard = forwardRef<
     error,
     livePoints,
     totalRoiPerDay,
+    nextClaimAt,
     getCalculatedValue,
     refresh,
     resetAfterClaim,
@@ -63,11 +65,17 @@ const RewardsCard = forwardRef<
     }
   }, [onRoiChange, onRoiChangeReady]);
 
+  useEffect(() => {
+    onNextClaimAtChange?.(nextClaimAt ?? null);
+  }, [nextClaimAt, onNextClaimAtChange]);
+
   useImperativeHandle(ref, () => ({
     refresh,
   }));
 
   const perSecond = totalRoiPerDay > 0 ? totalRoiPerDay / 86400 : 0; // $/sec from $/day
+
+  const claimCooldownActive = !!nextClaimAt && nextClaimAt.getTime() > Date.now();
 
   async function handleClaim() {
     if (!walletAddress) {
@@ -132,14 +140,16 @@ const RewardsCard = forwardRef<
       {/* Claim Button – keep style consistent with rest of app */}
       <button
         onClick={handleClaim}
-        disabled={!walletAddress || isClaiming}
+        disabled={!walletAddress || isClaiming || claimCooldownActive}
         className="mt-1 w-full py-3.5 rounded-lg bg-cyan-600 text-white text-base font-semibold hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
       >
         {isClaiming
           ? "Preparing..."
           : !walletAddress
             ? "Connect Wallet to Claim"
-            : "Claim Earnings"}
+            : claimCooldownActive
+              ? "Claim available once per 24h"
+              : "Claim Earnings"}
       </button>
 
       <ConfirmModal

@@ -30,6 +30,8 @@ export default function LeftPanel({
   const [shipBuyWorking, setShipBuyWorking] = useState(false);
   const [shipBuySig, setShipBuySig] = useState<string | null>(null);
 
+  const [nextClaimAt, setNextClaimAt] = useState<Date | null>(null);
+
   async function refreshShip() {
     if (!walletAddress) {
       setShip(null);
@@ -216,12 +218,13 @@ export default function LeftPanel({
       </div>
 
       {/* Quote / Treasury */}
-      <QuoteCard nextUpgradeUsd={nextPriceUsd} />
+      <QuoteCard nextUpgradeUsd={nextPriceUsd} nextClaimAt={nextClaimAt} />
 
       {/* Passive Income / Rewards Card */}
       <RewardsCard
         onRefreshReady={onRefreshRewardsReady}
         onRoiChangeReady={onRoiChangeReady}
+        onNextClaimAtChange={setNextClaimAt}
       />
 
       {wallet.connected && wallet.publicKey && (
