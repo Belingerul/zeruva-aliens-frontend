@@ -16,7 +16,16 @@ export async function ensureAuth(wallet: {
   if (existing) return existing;
 
   if (!wallet.connected) {
-    await wallet.connect();
+    try {
+      await wallet.connect();
+    } catch (e: any) {
+      // Wallet adapters typically throw WalletConnectionError with message "User rejected the request."
+      const msg = e?.message || String(e);
+      if (/rejected/i.test(msg)) {
+        throw new Error("Connection request was rejected in Phantom. Please approve the connection popup, then try again.");
+      }
+      throw e;
+    }
   }
 
   const walletAddress = wallet.publicKey?.toBase58();

@@ -53,9 +53,15 @@ export default function ConfirmEggClient() {
       setSig(null);
       setIntent(null);
 
+      if (!wallet.connected) {
+        setLoading(false);
+        setError("Please click Connect Wallet and approve the Phantom popup.");
+        return;
+      }
+
       if (!walletAddress) {
         setLoading(false);
-        setError("Connect your wallet to continue.");
+        setError("Wallet connected but no address found. Try reconnecting.");
         return;
       }
 
@@ -141,6 +147,14 @@ export default function ConfirmEggClient() {
           </div>
 
           <div className="mt-5 space-y-3">
+            {!wallet.connected && (
+              <button
+                onClick={() => wallet.connect()}
+                className="w-full py-3 rounded-lg bg-cyan-500 text-black font-bold"
+              >
+                Connect Wallet
+              </button>
+            )}
             {loading && <div className="text-gray-300 text-sm">Preparing…</div>}
             {error && <div className="text-red-400 text-sm">{error}</div>}
 
