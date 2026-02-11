@@ -10,6 +10,7 @@ import {
   buyEgg,
   confirmBuyEgg,
 } from "../api";
+import { openConfirmTab } from "../utils/openConfirmTab";
 
 type Tier = "Nothing" | "Common" | "Rare" | "Epic" | "Legendary";
 
@@ -134,10 +135,10 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
 
       setLastQuote({ eggType, priceUsd, amountSol, solUsd, solUsdSource });
 
-      const ok = window.confirm(
-        `Confirm purchase:\n\n$${priceUsd} ≈ ${amountSol.toFixed(4)} SOL\n(SOL/USD: ${solUsd.toFixed(2)} via ${solUsdSource})\n\nProceed to sign the transaction?`,
-      );
-      if (!ok) return;
+      // Open themed confirmation tab instead of browser confirm dialogs.
+      // User completes purchase in the new tab, then returns here to spin.
+      openConfirmTab(`/confirm/egg?eggType=${encodeURIComponent(eggType)}`);
+      return;
 
       const { Transaction, Connection } = await import("@solana/web3.js");
       const connection = new Connection(

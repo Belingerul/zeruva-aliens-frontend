@@ -2,14 +2,8 @@
 
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRewards } from "../hooks/useRewards";
-import { apiRequest } from "../api";
-import {
-  useState,
-  useEffect,
-  useImperativeHandle,
-  forwardRef,
-  useRef,
-} from "react";
+import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from "react";
+import { openConfirmTab } from "../utils/openConfirmTab";
 
 interface RewardsCardProps {
   onRefreshReady?: (refreshFn: () => Promise<void>) => void;
@@ -71,51 +65,23 @@ const RewardsCard = forwardRef<
 
   async function handleClaim() {
     if (!walletAddress) {
-      alert("Connect your wallet to claim.");
+      setClaimError("Connect wallet to claim.");
       return;
     }
+
     setIsClaiming(true);
     setClaimError(null);
 
     try {
-      // Client-side expected value (anti-cheat only). Backend is authoritative.
-      const expectedUsd = getCalculatedValue();
+      // Open themed confirmation tab (replaces old confirm dialogs).
+      openConfirmTab("/confirm/claim");
 
-      // 1) Create a payout intent that locks the SOL amount at the current SOL/USD rate.
-      const intent = await apiRequest(`/claim-sol-intent`, {
-        method: "POST",
-        body: JSON.stringify({ expected_earnings: expectedUsd }),
-      });
-
-      if (!intent?.intentId) {
-        // Nothing to claim
-        await refresh();
-        return;
-      }
-
-      const ok = window.confirm(
-        `Claim earnings:\n\n` +
-          `$${Number(intent.earningsUsd ?? 0).toFixed(4)} ≈ ${Number(intent.amountSol ?? 0).toFixed(6)} SOL\n` +
-          `Rate: ${Number(intent.solUsd ?? 0).toFixed(2)} USD/SOL (${intent.solUsdSource ?? ""})\n\n` +
-          `The SOL amount is locked for a few minutes. Continue?`
-      );
-      if (!ok) return;
-
-      // 2) Confirm: backend sends SOL from dev wallet to the user.
-      const paid = await apiRequest(`/confirm-claim-sol`, {
-        method: "POST",
-        body: JSON.stringify({ intentId: intent.intentId }),
-      });
-
-      if (paid?.signature) {
-        alert(`Claim paid! Tx: ${paid.signature}`);
-      }
-
-      await refresh();
+      // Optimistically refresh after a short delay; the confirm tab will also update state when done.
+      setTimeout(() => {
+        refresh().catch(() => {});
+      }, 1500);
     } catch (e: any) {
-      console.error("Claim error", e);
-      setClaimError(e.message || "Claim failed");
-      await refresh();
+      setClaimError(e?.message || "Failed to open confirmation tab");
     } finally {
       setIsClaiming(false);
     }
@@ -125,14 +91,13 @@ const RewardsCard = forwardRef<
     <div className="w-full rounded-xl p-5 bg-black/60 border border-gray-800 flex flex-col gap-3">
       <div className="flex items-center gap-4">
         {/* Circle with live earnings */}
-        <div className="w-28 h-28 rounded-full border border-cyan-500/60 flex flex-col items-center justify-center bg-black/60 shrink-0">
-          <div className="text-lg text-gray-200 font-semibold relative -top-2">
+        <div className="w-32 h-32 rounded-full border border-cyan-500/60 flex flex-col items-center justify-center bg-black/60 shrink-0">          <div className="text-lg text-gray-200 font-semibold relative -top-1">
             Earnings
           </div>
-          {/* High-precision display: show 4 decimal places for smooth visual updates */}
-          <div className="text-[20px] leading-none font-bold text-white relative -top-1">
+          <div className="text-[24px] leading-none font-bold text-white">
             ${(livePoints ?? 0).toFixed(4)}
           </div>
+          <div className="text-[11px] text-gray-400 mt-1">Live</div>
         </div>
 
         <div className="flex flex-col text-gray-300 gap-1 min-w-0">

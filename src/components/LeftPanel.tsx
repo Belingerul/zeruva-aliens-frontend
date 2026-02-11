@@ -1,13 +1,10 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
-import {
-  buySpaceship,
-  confirmBuySpaceship,
-  getShipWithSlots,
-  type ShipWithSlots,
-} from "../api";
+import { getShipWithSlots, type ShipWithSlots } from "../api";
 import RewardsCard from "./RewardsCard";
+import QuoteCard from "./QuoteCard";
+import { openConfirmTab } from "../utils/openConfirmTab";
 import { useEffect, useMemo, useState } from "react";
 
 interface LeftPanelProps {
@@ -71,41 +68,13 @@ export default function LeftPanel({
   const canUpgrade = wallet.connected && currentLevel < 3;
 
   async function handleUpgradeSpaceship() {
-    if (!wallet.connected || !wallet.publicKey) {
-      alert("Please connect your wallet first!");
-      return;
-    }
-
-    const levelToBuy = nextLevel;
+    if (!wallet.connected || !wallet.publicKey) return;
 
     try {
-      const { serialized, intentId } = await buySpaceship(walletAddress!, levelToBuy);
-
-      const { Transaction, Connection } = await import("@solana/web3.js");
-      const connection = new Connection(
-        process.env.VITE_RPC_URL || "https://api.devnet.solana.com",
-        "confirmed",
-      );
-
-      const tx = Transaction.from(Buffer.from(serialized, "base64"));
-
-      if (!wallet.signTransaction) {
-        alert("Wallet doesn't support transaction signing");
-        return;
-      }
-
-      const signed = await wallet.signTransaction(tx);
-      const signature = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(signature, "confirmed");
-
-      await confirmBuySpaceship(levelToBuy, signature, intentId);
-
-      window.dispatchEvent(new Event("zeruva_ship_changed"));
-
-      alert(`Spaceship upgraded! Tx: ${signature}`);
-    } catch (error: any) {
-      console.error("Upgrade failed:", error);
-      alert(`Upgrade failed: ${error.message || "Network Error"}`);
+      // Open themed confirmation tab (replaces old confirm dialogs)
+      openConfirmTab(`/confirm/ship?level=${nextLevel}`);
+    } catch (e: any) {
+      console.error(e);
     }
   }
 
@@ -158,6 +127,9 @@ export default function LeftPanel({
             : "Upgrades increase your available alien slots."}
         </div>
       </div>
+
+      {/* Quote / Treasury */}
+      <QuoteCard nextUpgradeUsd={nextPriceUsd} />
 
       {/* Passive Income / Rewards Card */}
       <RewardsCard
