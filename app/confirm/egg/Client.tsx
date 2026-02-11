@@ -59,6 +59,15 @@ export default function ConfirmEggClient() {
         return;
       }
 
+      try {
+        const { ensureAuth } = await import("../../../src/utils/ensureAuth");
+        await ensureAuth(wallet);
+      } catch (e: any) {
+        setLoading(false);
+        setError(e?.message || "Login failed");
+        return;
+      }
+
       if (!["basic", "rare", "ultra"].includes(eggType)) {
         setLoading(false);
         setError("Invalid egg type.");

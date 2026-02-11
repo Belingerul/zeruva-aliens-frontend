@@ -58,6 +58,15 @@ export default function ConfirmShipClient() {
         setError("Connect your wallet to continue.");
         return;
       }
+
+      try {
+        const { ensureAuth } = await import("../../../src/utils/ensureAuth");
+        await ensureAuth(wallet);
+      } catch (e: any) {
+        setLoading(false);
+        setError(e?.message || "Login failed");
+        return;
+      }
       if (!level || level < 1 || level > 3) {
         setLoading(false);
         setError("Missing or invalid level.");

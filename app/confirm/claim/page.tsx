@@ -64,6 +64,9 @@ function ConfirmClaimInner() {
       }
 
       try {
+        const { ensureAuth } = await import("../../../src/utils/ensureAuth");
+        await ensureAuth(wallet);
+
         // expected_earnings is optional; backend is authoritative.
         const data = await apiRequest<ClaimIntent>("/claim-sol-intent", {
           method: "POST",
@@ -108,8 +111,13 @@ function ConfirmClaimInner() {
           </div>
 
           <div className="mt-5 space-y-3">
-            {!walletAddress && (
-              <div className="text-red-400 text-sm">Connect wallet to continue.</div>
+            {!wallet.connected && (
+              <button
+                onClick={() => wallet.connect()}
+                className="w-full py-3 rounded-lg bg-cyan-500 text-black font-bold"
+              >
+                Connect Wallet
+              </button>
             )}
 
             {loading && (
