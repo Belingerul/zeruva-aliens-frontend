@@ -8,13 +8,16 @@ const nextConfig = {
   },
 
   async rewrites() {
+    const backend =
+      process.env.BACKEND_URL ||
+      "https://zeruva-backend-production.up.railway.app";
+
     return [
       {
         // Proxy API requests through the same origin to avoid CORS issues,
         // especially when the frontend is accessed via https tunnels.
         source: "/api/:path*",
-        destination:
-          "https://zeruva-backend-production.up.railway.app/api/:path*",
+        destination: `${backend.replace(/\/+$/, "")}/api/:path*`,
       },
     ];
   },
