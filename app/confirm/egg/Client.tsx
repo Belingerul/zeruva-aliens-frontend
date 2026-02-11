@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { apiRequest } from "../../../src/api";
 
 type BuyEggIntent = {
@@ -148,12 +149,9 @@ export default function ConfirmEggClient() {
 
           <div className="mt-5 space-y-3">
             {!wallet.connected && (
-              <button
-                onClick={() => wallet.connect()}
-                className="w-full py-3 rounded-lg bg-cyan-500 text-black font-bold"
-              >
-                Connect Wallet
-              </button>
+              <div className="w-full">
+                <WalletMultiButton className="!w-full !justify-center !bg-cyan-500 !text-black !rounded-lg !py-3 !font-bold hover:!bg-cyan-600" />
+              </div>
             )}
             {loading && <div className="text-gray-300 text-sm">Preparing…</div>}
             {error && <div className="text-red-400 text-sm">{error}</div>}

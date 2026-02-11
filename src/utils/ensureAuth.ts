@@ -9,6 +9,8 @@ export async function ensureAuth(wallet: {
   publicKey?: { toBase58: () => string } | null;
   connected: boolean;
   connect: () => Promise<void>;
+  // available on @solana/wallet-adapter-react
+  select?: (walletName: string) => void;
   signMessage?: (msg: Uint8Array) => Promise<Uint8Array>;
 }) {
   // If we already have a JWT, nothing to do.
@@ -17,14 +19,20 @@ export async function ensureAuth(wallet: {
 
   if (!wallet.connected) {
     try {
+      // In new tabs the wallet may not be selected yet. Phantom is the only one we ship here.
+      wallet.select?.("Phantom");
       await wallet.connect();
     } catch (e: any) {
-      // Wallet adapters typically throw WalletConnectionError with message "User rejected the request."
       const msg = e?.message || String(e);
-      if (/rejected/i.test(msg)) {
-        throw new Error("Connection request was rejected in Phantom. Please approve the connection popup, then try again.");
+      if (/not selected/i.test(msg)) {
+        throw new Error("No wallet selected. Click the wallet button and pick Phantom.");
       }
-      throw e;
+      if (/rejected/i.test(msg)) {
+        throw new Error(
+          "Connection request was rejected in Phantom. Approve the Phantom popup, then try again."
+        );
+      }
+      throw new Error(msg);
     }
   }
 
