@@ -78,31 +78,43 @@ const RewardsCard = forwardRef<
     setClaimError(null);
 
     try {
-      // Calculate current value client-side
-      // Backend will independently verify this value for anti-cheat protection
-      const calculatedValue = getCalculatedValue();
+      // Client-side expected value (anti-cheat only). Backend is authoritative.
+      const expectedUsd = getCalculatedValue();
 
-      // Send claim request with calculated value for backend validation
-      // Backend must:
-      // 1. Independently calculate expected value using lastClaimTimestamp, totalClaimedPoints, and dailyROI
-      // 2. Compare with client's calculatedValue within tolerance (e.g., ±0.01)
-      // 3. Reject if mismatch (potential cheating)
-      // 4. On success: update totalClaimedPoints and lastClaimTimestamp
-      await apiRequest(`/claim-rewards`, {
+      // 1) Create a payout intent that locks the SOL amount at the current SOL/USD rate.
+      const intent = await apiRequest(`/claim-sol-intent`, {
         method: "POST",
-        body: JSON.stringify({
-          expected_earnings: calculatedValue,
-        }),
+        body: JSON.stringify({ expected_earnings: expectedUsd }),
       });
 
-      // After successful claim, call /api/rewards ONCE to get updated state
-      // This is the second allowed call (after initial load)
-      // Backend response contains authoritative values which refresh() will fetch
+      if (!intent?.intentId) {
+        // Nothing to claim
+        await refresh();
+        return;
+      }
+
+      const ok = window.confirm(
+        `Claim earnings:\n\n` +
+          `$${Number(intent.earningsUsd ?? 0).toFixed(4)} ≈ ${Number(intent.amountSol ?? 0).toFixed(6)} SOL\n` +
+          `Rate: ${Number(intent.solUsd ?? 0).toFixed(2)} USD/SOL (${intent.solUsdSource ?? ""})\n\n` +
+          `The SOL amount is locked for a few minutes. Continue?`
+      );
+      if (!ok) return;
+
+      // 2) Confirm: backend sends SOL from dev wallet to the user.
+      const paid = await apiRequest(`/confirm-claim-sol`, {
+        method: "POST",
+        body: JSON.stringify({ intentId: intent.intentId }),
+      });
+
+      if (paid?.signature) {
+        alert(`Claim paid! Tx: ${paid.signature}`);
+      }
+
       await refresh();
     } catch (e: any) {
       console.error("Claim error", e);
       setClaimError(e.message || "Claim failed");
-      // On error, call /api/rewards to sync with server state
       await refresh();
     } finally {
       setIsClaiming(false);
