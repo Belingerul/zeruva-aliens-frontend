@@ -149,8 +149,21 @@ export default function ConfirmEggClient() {
 
           <div className="mt-5 space-y-3">
             {!wallet.connected && (
-              <div className="w-full">
+              <div className="w-full space-y-2">
                 <WalletMultiButton className="!w-full !justify-center !bg-cyan-500 !text-black !rounded-lg !py-3 !font-bold hover:!bg-cyan-600" />
+                <button
+                  onClick={() => {
+                    const url = encodeURIComponent(window.location.href);
+                    const ref = encodeURIComponent(window.location.origin);
+                    window.location.href = `https://phantom.app/ul/browse/${url}?ref=${ref}`;
+                  }}
+                  className="w-full py-3 rounded-lg border border-gray-700 text-gray-200"
+                >
+                  Open this page in Phantom
+                </button>
+                <div className="text-[11px] text-gray-500">
+                  If you’re on mobile and Phantom won’t open from your browser, use this.
+                </div>
               </div>
             )}
             {loading && <div className="text-gray-300 text-sm">Preparing…</div>}
