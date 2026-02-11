@@ -3,7 +3,8 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRewards } from "../hooks/useRewards";
 import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from "react";
-import { openConfirmTab } from "../utils/openConfirmTab";
+import ConfirmModal from "./ConfirmModal";
+import { apiRequest } from "../api";
 
 interface RewardsCardProps {
   onRefreshReady?: (refreshFn: () => Promise<void>) => void;
@@ -29,6 +30,11 @@ const RewardsCard = forwardRef<
   } = useRewards(walletAddress);
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+
+  const [claimOpen, setClaimOpen] = useState(false);
+  const [claimQuote, setClaimQuote] = useState<any>(null);
+  const [claimWorking, setClaimWorking] = useState(false);
+  const [claimSig, setClaimSig] = useState<string | null>(null);
   const onRefreshReadyRef = useRef(onRefreshReady);
   const lastRegisteredRefreshRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -71,17 +77,20 @@ const RewardsCard = forwardRef<
 
     setIsClaiming(true);
     setClaimError(null);
+    setClaimSig(null);
 
     try {
-      // Open themed confirmation tab (replaces old confirm dialogs).
-      openConfirmTab("/confirm/claim");
+      const expectedUsd = getCalculatedValue();
+      const quote = await apiRequest("/claim-sol-intent", {
+        method: "POST",
+        body: JSON.stringify({ expected_earnings: expectedUsd }),
+      });
 
-      // Optimistically refresh after a short delay; the confirm tab will also update state when done.
-      setTimeout(() => {
-        refresh().catch(() => {});
-      }, 1500);
+      setClaimQuote(quote);
+      setClaimOpen(true);
     } catch (e: any) {
-      setClaimError(e?.message || "Failed to open confirmation tab");
+      setClaimError(e?.message || "Failed to prepare claim");
+      await refresh();
     } finally {
       setIsClaiming(false);
     }
@@ -127,11 +136,73 @@ const RewardsCard = forwardRef<
         className="mt-1 w-full py-3.5 rounded-lg bg-cyan-600 text-white text-base font-semibold hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-700"
       >
         {isClaiming
-          ? "Claiming..."
+          ? "Preparing..."
           : !walletAddress
             ? "Connect Wallet to Claim"
             : "Claim Earnings"}
       </button>
+
+      <ConfirmModal
+        open={claimOpen}
+        title="Confirm Claim Rewards"
+        subtitle="This will send SOL from the dev treasury to your wallet (quote is locked briefly)."
+        primaryText={claimSig ? "Paid" : claimWorking ? "Paying…" : "Confirm Claim"}
+        primaryDisabled={!claimQuote?.intentId || claimWorking || !!claimSig}
+        onPrimary={async () => {
+          if (!claimQuote?.intentId) {
+            setClaimOpen(false);
+            return;
+          }
+          setClaimWorking(true);
+          setClaimError(null);
+          try {
+            const paid: any = await apiRequest("/confirm-claim-sol", {
+              method: "POST",
+              body: JSON.stringify({ intentId: claimQuote.intentId }),
+            });
+            setClaimSig(paid?.signature || null);
+            await refresh();
+          } catch (e: any) {
+            setClaimError(e?.message || "Claim failed");
+            await refresh();
+          } finally {
+            setClaimWorking(false);
+          }
+        }}
+        onSecondary={() => {
+          setClaimOpen(false);
+          setClaimSig(null);
+        }}
+      >
+        {claimQuote?.intentId === null ? (
+          <div className="text-sm text-gray-300">Nothing to claim right now.</div>
+        ) : (
+          <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-400">You receive</div>
+                <div className="text-xl font-bold">
+                  {Number(claimQuote?.amountSol ?? 0).toFixed(6)} SOL
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-400">Earnings</div>
+                <div className="text-xl font-bold">
+                  ${Number(claimQuote?.earningsUsd ?? 0).toFixed(4)}
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 text-sm text-gray-400">
+              Rate: {Number(claimQuote?.solUsd ?? 0).toFixed(2)} USD/SOL ({claimQuote?.solUsdSource || ""})
+            </div>
+            {claimSig && (
+              <div className="mt-3 text-sm text-green-300 break-all">
+                Paid tx: {claimSig}
+              </div>
+            )}
+          </div>
+        )}
+      </ConfirmModal>
     </div>
   );
 });

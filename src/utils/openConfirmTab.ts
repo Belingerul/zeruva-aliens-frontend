@@ -1,10 +1,4 @@
-export function openConfirmTab(path: string) {
-  // Open immediately (user-gesture) to avoid popup blockers.
-  const url = path.startsWith("/") ? path : `/${path}`;
-  const tab = window.open(url, "_blank", "noopener,noreferrer");
-  if (!tab) {
-    // Popup blocked
-    throw new Error("Popup blocked. Please allow popups for this site.");
-  }
-  return tab;
+// (Deprecated) previously used for /confirm/* pages. Kept to avoid import errors if referenced.
+export function openConfirmTab(_path: string) {
+  throw new Error("Confirmation tabs are deprecated. Use the in-app confirmation modal.");
 }

@@ -10,7 +10,7 @@ import {
   buyEgg,
   confirmBuyEgg,
 } from "../api";
-import { openConfirmTab } from "../utils/openConfirmTab";
+import ConfirmModal from "./ConfirmModal";
 
 type Tier = "Nothing" | "Common" | "Rare" | "Epic" | "Legendary";
 
@@ -120,6 +120,11 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
     });
   };
 
+  const [buyOpen, setBuyOpen] = useState(false);
+  const [buyEggType, setBuyEggType] = useState<"basic" | "rare" | "ultra" | null>(null);
+  const [buyQuote, setBuyQuote] = useState<any>(null);
+  const [buyWorking, setBuyWorking] = useState(false);
+
   async function buyAndSpin(eggType: "basic" | "rare" | "ultra") {
     if (isSpinning) return;
 
@@ -135,9 +140,10 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
 
       setLastQuote({ eggType, priceUsd, amountSol, solUsd, solUsdSource });
 
-      // Open themed confirmation tab instead of browser confirm dialogs.
-      // User completes purchase in the new tab, then returns here to spin.
-      openConfirmTab(`/confirm/egg?eggType=${encodeURIComponent(eggType)}`);
+      // Prepare quote and show in-app confirmation modal.
+      setBuyEggType(eggType);
+      setBuyQuote({ serialized, intentId, amountSol, solUsd, solUsdSource, priceUsd, eggType });
+      setBuyOpen(true);
       return;
 
       const { Transaction, Connection } = await import("@solana/web3.js");
@@ -452,9 +458,7 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
                   </>
                 ) : (
                   <>
-                    <div className="text-gray-300 text-lg">
-                      Alien #{result.id}
-                    </div>
+                    <div className="text-gray-300 text-lg">Alien #{result.id}</div>
                     <div className="text-cyan-400 font-semibold">
                       {result.roi.toFixed(1)} $ / day
                     </div>
@@ -464,6 +468,82 @@ export default function SpinModal({ onClose, onSpinComplete }: SpinModalProps) {
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          open={buyOpen}
+          title="Confirm Egg Purchase"
+          subtitle="Review the quote and sign the transaction."
+          primaryText={buyWorking ? "Confirming…" : "Confirm & Sign"}
+          primaryDisabled={!buyQuote?.serialized || buyWorking}
+          onPrimary={async () => {
+            if (!buyQuote?.serialized || !buyEggType) return;
+            if (!wallet.signTransaction) {
+              alert("Wallet doesn't support transaction signing");
+              return;
+            }
+
+            setBuyWorking(true);
+
+            try {
+              const { Transaction, Connection } = await import("@solana/web3.js");
+              const connection = new Connection(
+                process.env.VITE_RPC_URL || "https://api.devnet.solana.com",
+                "confirmed",
+              );
+
+              const tx = Transaction.from(Buffer.from(buyQuote.serialized, "base64"));
+
+              // Make sure the user has devnet SOL for fees + payment
+              const balance = await connection.getBalance(wallet.publicKey!, "confirmed");
+              if (balance < 0.001 * 1e9) {
+                alert("You have 0 SOL (devnet). Get devnet SOL (airdrop) then try again.");
+                return;
+              }
+
+              let sig: string;
+              if (wallet.sendTransaction) {
+                sig = await wallet.sendTransaction(tx, connection);
+              } else {
+                const signed = await wallet.signTransaction(tx);
+                sig = await connection.sendRawTransaction(signed.serialize());
+              }
+
+              await connection.confirmTransaction(sig, "confirmed");
+
+              await confirmBuyEgg(buyEggType, sig, buyQuote.intentId);
+
+              setBuyOpen(false);
+              setBuyWorking(false);
+
+              await startSpin(buyEggType);
+            } catch (e: any) {
+              console.error("Buy egg failed", e);
+              alert(`Buy egg failed: ${e.message || "Unknown error"}`);
+            } finally {
+              setBuyWorking(false);
+            }
+          }}
+          onSecondary={() => {
+            setBuyOpen(false);
+            setBuyWorking(false);
+          }}
+        >
+          <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-400">Egg</div>
+                <div className="text-xl font-bold capitalize">{buyQuote?.eggType}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-400">Price</div>
+                <div className="text-xl font-bold">${Number(buyQuote?.priceUsd ?? 0).toFixed(2)}</div>
+              </div>
+            </div>
+            <div className="mt-2 text-sm text-gray-400">
+              ≈ {Number(buyQuote?.amountSol ?? 0).toFixed(6)} SOL · Rate {Number(buyQuote?.solUsd ?? 0).toFixed(2)} USD/SOL ({buyQuote?.solUsdSource || ""})
+            </div>
+          </div>
+        </ConfirmModal>
       </div>
     </div>
   );

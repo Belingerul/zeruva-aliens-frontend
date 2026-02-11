@@ -4,7 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { getShipWithSlots, type ShipWithSlots } from "../api";
 import RewardsCard from "./RewardsCard";
 import QuoteCard from "./QuoteCard";
-import { openConfirmTab } from "../utils/openConfirmTab";
+import ConfirmModal from "./ConfirmModal";
 import { useEffect, useMemo, useState } from "react";
 
 interface LeftPanelProps {
@@ -24,6 +24,11 @@ export default function LeftPanel({
   const [ship, setShip] = useState<ShipWithSlots | null>(null);
   const [shipLoading, setShipLoading] = useState(false);
   const [shipError, setShipError] = useState<string | null>(null);
+
+  const [shipBuyOpen, setShipBuyOpen] = useState(false);
+  const [shipBuyQuote, setShipBuyQuote] = useState<any>(null);
+  const [shipBuyWorking, setShipBuyWorking] = useState(false);
+  const [shipBuySig, setShipBuySig] = useState<string | null>(null);
 
   async function refreshShip() {
     if (!walletAddress) {
@@ -69,12 +74,18 @@ export default function LeftPanel({
 
   async function handleUpgradeSpaceship() {
     if (!wallet.connected || !wallet.publicKey) return;
+    setShipBuySig(null);
+    setShipBuyQuote(null);
+    setShipBuyWorking(false);
+    setShipBuyOpen(true);
 
     try {
-      // Open themed confirmation tab (replaces old confirm dialogs)
-      openConfirmTab(`/confirm/ship?level=${nextLevel}`);
+      const { buySpaceship } = await import("../api");
+      const quote = await buySpaceship(walletAddress!, nextLevel);
+      setShipBuyQuote(quote);
     } catch (e: any) {
-      console.error(e);
+      setShipError(e?.message || "Failed to prepare upgrade");
+      setShipBuyOpen(false);
     }
   }
 
@@ -121,6 +132,82 @@ export default function LeftPanel({
               : `Upgrade to Lv${nextLevel} ($${nextPriceUsd})`}
         </button>
 
+        <ConfirmModal
+          open={shipBuyOpen}
+          title="Confirm Spaceship Upgrade"
+          subtitle="Review the quote and sign the transaction."
+          primaryText={shipBuySig ? "Confirmed" : shipBuyWorking ? "Confirming…" : "Confirm & Sign"}
+          primaryDisabled={!shipBuyQuote?.serialized || shipBuyWorking || !!shipBuySig}
+          onPrimary={async () => {
+            if (!shipBuyQuote?.serialized) return;
+            if (!wallet.signTransaction) {
+              setShipError("Wallet doesn't support transaction signing");
+              return;
+            }
+
+            setShipBuyWorking(true);
+            setShipError(null);
+
+            try {
+              const { Transaction, Connection } = await import("@solana/web3.js");
+              const { confirmBuySpaceship } = await import("../api");
+              const connection = new Connection(
+                process.env.VITE_RPC_URL || "https://api.devnet.solana.com",
+                "confirmed",
+              );
+
+              const tx = Transaction.from(
+                Buffer.from(shipBuyQuote.serialized, "base64"),
+              );
+
+              const signed = await wallet.signTransaction(tx);
+              const signature = await connection.sendRawTransaction(
+                signed.serialize(),
+              );
+              await connection.confirmTransaction(signature, "confirmed");
+
+              await confirmBuySpaceship(
+                shipBuyQuote.level,
+                signature,
+                shipBuyQuote.intentId,
+              );
+
+              setShipBuySig(signature);
+              window.dispatchEvent(new Event("zeruva_ship_changed"));
+              await refreshShip();
+            } catch (e: any) {
+              setShipError(e?.message || "Upgrade failed");
+            } finally {
+              setShipBuyWorking(false);
+            }
+          }}
+          onSecondary={() => {
+            setShipBuyOpen(false);
+            setShipBuySig(null);
+          }}
+        >
+          <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-400">Upgrade to</div>
+                <div className="text-xl font-bold">Lv {shipBuyQuote?.level ?? nextLevel}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-400">Price</div>
+                <div className="text-xl font-bold">${Number(shipBuyQuote?.priceUsd ?? nextPriceUsd).toFixed(2)}</div>
+              </div>
+            </div>
+            <div className="mt-2 text-sm text-gray-400">
+              ≈ {Number(shipBuyQuote?.amountSol ?? 0).toFixed(6)} SOL · Rate {Number(shipBuyQuote?.solUsd ?? 0).toFixed(2)} USD/SOL ({shipBuyQuote?.solUsdSource || ""})
+            </div>
+            {shipBuySig && (
+              <div className="mt-3 text-sm text-green-300 break-all">
+                Tx: {shipBuySig}
+              </div>
+            )}
+          </div>
+        </ConfirmModal>
+
         <div className="mt-2 text-[11px] text-gray-400 leading-snug">
           {currentLevel >= 3
             ? "Your ship is at max level."
@@ -139,9 +226,23 @@ export default function LeftPanel({
 
       {wallet.connected && wallet.publicKey && (
         <div className="mt-auto text-sm text-cyan-200 bg-black/40 rounded-xl p-3 border border-gray-700">
-          <div className="font-semibold mb-1">Connected</div>
-          <div className="font-mono text-base break-all">
-            {wallet.publicKey.toBase58()}
+          <div className="font-semibold mb-2">Connected</div>
+          <div className="flex items-center gap-2">
+            <div className="font-mono text-base flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+              {wallet.publicKey.toBase58()}
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(wallet.publicKey!.toBase58());
+                } catch {
+                  // ignore
+                }
+              }}
+              className="shrink-0 px-3 py-1.5 rounded-lg border border-gray-600 text-gray-200 text-xs hover:bg-white/5"
+            >
+              Copy
+            </button>
           </div>
         </div>
       )}
