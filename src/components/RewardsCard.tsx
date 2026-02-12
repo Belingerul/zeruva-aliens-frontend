@@ -2,7 +2,7 @@
 
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRewards } from "../hooks/useRewards";
-import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from "react";
+import { useState, useEffect, useImperativeHandle, forwardRef, useRef, useMemo } from "react";
 import ConfirmModal from "./ConfirmModal";
 import { apiRequest } from "../api";
 
@@ -77,6 +77,24 @@ const RewardsCard = forwardRef<
 
   const claimCooldownActive = !!nextClaimAt && nextClaimAt.getTime() > Date.now();
 
+  const [cooldownTick, setCooldownTick] = useState(0);
+  useEffect(() => {
+    if (!claimCooldownActive) return;
+    const id = window.setInterval(() => setCooldownTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [claimCooldownActive]);
+
+  const cooldownLabel = useMemo(() => {
+    if (!nextClaimAt) return null;
+    const ms = nextClaimAt.getTime() - Date.now();
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    const hh = Math.floor(s / 3600);
+    const mm = Math.floor((s % 3600) / 60);
+    const ss = s % 60;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+  }, [nextClaimAt, cooldownTick]);
+
   async function handleClaim() {
     if (!walletAddress) {
       setClaimError("Connect wallet to claim.");
@@ -148,7 +166,7 @@ const RewardsCard = forwardRef<
           : !walletAddress
             ? "Connect Wallet to Claim"
             : claimCooldownActive
-              ? "Claim available once per 24h"
+              ? `Next claim in ${cooldownLabel || "…"}`
               : "Claim Earnings"}
       </button>
 

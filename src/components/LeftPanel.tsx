@@ -218,7 +218,7 @@ export default function LeftPanel({
       </div>
 
       {/* Quote / Treasury */}
-      <QuoteCard nextUpgradeUsd={nextPriceUsd} nextClaimAt={nextClaimAt} />
+      <QuoteCard nextUpgradeUsd={nextPriceUsd} />
 
       {/* Passive Income / Rewards Card */}
       <RewardsCard

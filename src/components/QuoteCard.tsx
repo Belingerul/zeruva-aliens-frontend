@@ -5,7 +5,13 @@ import { apiRequest } from "../api";
 
 type PriceResp = { ok: true; solUsd: number; source: string; ts: number };
 
-export default function QuoteCard({ nextUpgradeUsd, nextClaimAt }: { nextUpgradeUsd: number; nextClaimAt: Date | null }) {
+export default function QuoteCard({
+  nextUpgradeUsd,
+}: {
+  nextUpgradeUsd: number;
+  // kept optional for backwards-compat with older props
+  nextClaimAt?: Date | null;
+}) {
   const [price, setPrice] = useState<PriceResp | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,6 +26,7 @@ export default function QuoteCard({ nextUpgradeUsd, nextClaimAt }: { nextUpgrade
         if (!cancelled) setError(e?.message || "Failed to load price");
       }
     }
+
     run();
     const id = setInterval(run, 60_000);
     return () => {
@@ -33,57 +40,41 @@ export default function QuoteCard({ nextUpgradeUsd, nextClaimAt }: { nextUpgrade
     return nextUpgradeUsd / Number(price.solUsd);
   }, [price?.solUsd, nextUpgradeUsd]);
 
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const claimSecondsLeft = useMemo(() => {
-    if (!nextClaimAt) return 0;
-    const ms = nextClaimAt.getTime() - Date.now();
-    return Math.max(0, Math.ceil(ms / 1000));
-  }, [nextClaimAt, tick]);
-
-  const claimLabel = useMemo(() => {
-    const s = claimSecondsLeft;
-    if (!nextClaimAt || s <= 0) return "Claim available";
-    const hh = Math.floor(s / 3600);
-    const mm = Math.floor((s % 3600) / 60);
-    const ss = s % 60;
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `Next claim in ${pad(hh)}:${pad(mm)}:${pad(ss)}`;
-  }, [claimSecondsLeft, nextClaimAt]);
-
   return (
-    <div className="w-full rounded-xl p-4 bg-black/60 border border-gray-800">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold text-gray-100">Quote / Treasury</div>
-        <div className="text-[11px] text-gray-500">
+    <div className="w-full rounded-xl p-5 bg-black/60 border border-gray-800">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-lg font-extrabold text-gray-100 leading-none">
+            Treasury / Quote
+          </div>
+          <div className="mt-1 text-xs text-gray-400">
+            Live SOL/USD pricing (auto refresh)
+          </div>
+        </div>
+        <div className="text-xs text-gray-500 whitespace-nowrap">
           {price?.ts ? new Date(price.ts).toLocaleTimeString() : ""}
         </div>
       </div>
 
-      {error && <div className="text-[11px] text-red-400 mt-2">{error}</div>}
+      {error && <div className="text-xs text-red-400 mt-3">{error}</div>}
 
-      <div className="mt-2 text-sm text-gray-300">
-        SOL/USD: <span className="text-cyan-300 font-semibold">{price ? Number(price.solUsd).toFixed(2) : "…"}</span>
-        <span className="text-gray-500"> {price ? `(${price.source})` : ""}</span>
-      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+          <div className="text-xs text-gray-400">SOL / USD</div>
+          <div className="mt-1 text-2xl font-bold text-cyan-300">
+            {price ? Number(price.solUsd).toFixed(2) : "…"}
+          </div>
+        </div>
 
-      <div className="mt-2 text-sm text-gray-300">
-        Next upgrade: <span className="text-gray-100 font-semibold">${nextUpgradeUsd.toFixed(2)}</span>
-        <span className="text-gray-500"> {estSol ? `≈ ${estSol.toFixed(6)} SOL` : ""}</span>
-      </div>
-
-      <div className="mt-3 text-sm">
-        <span className={claimSecondsLeft > 0 ? "text-yellow-300" : "text-green-300"}>
-          {claimLabel}
-        </span>
-      </div>
-
-      <div className="mt-2 text-[11px] text-gray-500">
-        Uses backend price feed. Treasury payout balance display can be added next.
+        <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+          <div className="text-xs text-gray-400">Next Ship Upgrade</div>
+          <div className="mt-1 text-2xl font-bold text-gray-100">
+            ${nextUpgradeUsd.toFixed(2)}
+          </div>
+          <div className="mt-1 text-xs text-gray-400">
+            {estSol ? `≈ ${estSol.toFixed(6)} SOL` : ""}
+          </div>
+        </div>
       </div>
     </div>
   );
