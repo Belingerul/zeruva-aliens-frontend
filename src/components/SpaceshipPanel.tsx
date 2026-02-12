@@ -84,9 +84,37 @@ export default function SpaceshipPanel({
     }
   };
 
-  const handleUpgradeShip = async () => {
-    // Disabled for now: upgrading must be paid on-chain like ship purchase.
-    alert("Ship upgrades are coming soon (paid on-chain). ");
+  const [expedition, setExpedition] = useState<any>(null);
+  const [expeditionWorking, setExpeditionWorking] = useState(false);
+
+  const loadExpedition = async () => {
+    try {
+      const { getExpeditionStatus } = await import("../api");
+      const st = await getExpeditionStatus();
+      setExpedition(st);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (publicKey) loadExpedition();
+  }, [publicKey]);
+
+  const handleStartExpedition = async () => {
+    if (!publicKey || expeditionWorking) return;
+    setExpeditionWorking(true);
+    try {
+      const { startExpedition } = await import("../api");
+      const st = await startExpedition("planet-1");
+      setExpedition(st);
+      // refresh rewards + ship UI
+      window.dispatchEvent(new Event("zeruva_roi_changed"));
+    } catch (e: any) {
+      alert(e?.message || "Failed to start expedition");
+    } finally {
+      setExpeditionWorking(false);
+    }
   };
 
   if (!publicKey) {
@@ -168,18 +196,24 @@ export default function SpaceshipPanel({
 
         <div className="mt-2 space-y-3">
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleUpgradeShip}
-            disabled={true}
-            className="w-full py-3 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold
-                     shadow-[0_0_20px_rgba(234,179,8,0.5)] hover:shadow-[0_0_30px_rgba(234,179,8,0.7)]
-                     transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            whileHover={{ scale: expedition?.expedition_active ? 1 : 1.02 }}
+            whileTap={{ scale: expedition?.expedition_active ? 1 : 0.98 }}
+            onClick={handleStartExpedition}
+            disabled={expeditionWorking || expedition?.expedition_active}
+            className="w-full py-3 rounded-lg bg-gradient-to-r from-purple-600 to-cyan-500 text-white font-semibold
+                     shadow-[0_0_20px_rgba(34,211,238,0.35)] hover:shadow-[0_0_30px_rgba(34,211,238,0.55)]
+                     transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {ship && ship.level >= 3
-              ? "Max Level"
-              : "Upgrade Ship (Coming Soon)"}
+            {expeditionWorking
+              ? "Starting Expedition…"
+              : expedition?.expedition_active
+                ? "Expedition Active (6h)"
+                : "Start Expedition (6h)"}
           </motion.button>
+
+          <div className="text-xs text-gray-400 text-center">
+            Earnings happen only during expeditions (assigned aliens only).
+          </div>
         </div>
       </div>
     </div>

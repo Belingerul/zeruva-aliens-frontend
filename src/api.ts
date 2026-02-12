@@ -23,6 +23,13 @@ export interface Ship {
   level: number;
 }
 
+export interface ExpeditionStatus {
+  expedition_active: boolean;
+  expedition_started_at: string | null;
+  expedition_ends_at: string | null;
+  expedition_planet: string | null;
+}
+
 export interface AlienWithStats extends Alien {
   id: number;
   image: string;
@@ -157,6 +164,17 @@ export const upgradeShipLevel = async (wallet: string, newLevel: number) => {
 };
 
 export const upgradeShip = upgradeShipLevel;
+
+export const getExpeditionStatus = async () => {
+  return await apiRequest(`/expedition/status`, { method: "GET" });
+};
+
+export const startExpedition = async (planet = "planet-1") => {
+  return await apiRequest(`/expedition/start`, {
+    method: "POST",
+    body: JSON.stringify({ planet }),
+  });
+};
 
 export const buySpaceship = async (
   wallet: string,
