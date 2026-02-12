@@ -103,13 +103,18 @@ export default function SpaceshipPanel({
 
   const handleStartExpedition = async () => {
     if (!publicKey || expeditionWorking) return;
+
+    // Freeze + refresh rewards baseline before changing ROI state
+    if (onRoiChange) onRoiChange();
+
     setExpeditionWorking(true);
     try {
       const { startExpedition } = await import("../api");
       const st = await startExpedition("planet-1");
       setExpedition(st);
-      // refresh rewards + ship UI
-      window.dispatchEvent(new Event("zeruva_roi_changed"));
+
+      // Force a rewards refresh so ROI switches from 0 -> assigned ROI immediately
+      if (onRoiChange) onRoiChange();
     } catch (e: any) {
       alert(e?.message || "Failed to start expedition");
     } finally {
