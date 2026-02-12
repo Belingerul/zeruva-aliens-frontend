@@ -27,7 +27,8 @@ export function useRewards(walletAddress: string | null): RewardsState {
   const [pendingEarnings, setPendingEarnings] = useState(0); // Pending earnings from backend (authoritative)
   const [displayPendingEarnings, setDisplayPendingEarnings] = useState(0); // Display-only pending (may be adjusted)
   const [lastClaimAt, setLastClaimAt] = useState<Date | null>(null); // Display timestamp (may be adjusted for visual continuity)
-  const [serverLastClaimAt, setServerLastClaimAt] = useState<Date | null>(null); // Authoritative server timestamp (for claim validation)
+  const [serverLastClaimAt, setServerLastClaimAt] = useState<Date | null>(null); // Claim cooldown baseline
+  const [serverLastAccrualAt, setServerLastAccrualAt] = useState<Date | null>(null); // Earnings accrual baseline
   const [nextClaimAt, setNextClaimAt] = useState<Date | null>(null);
 
   // High-precision live counter using requestAnimationFrame for smooth updates
@@ -41,6 +42,7 @@ export function useRewards(walletAddress: string | null): RewardsState {
   const roiChangeDebounceRef = useRef<number | null>(null);
   const pendingAdjustmentRef = useRef<number>(0);
   const serverLastClaimAtRef = useRef<Date | null>(null);
+  const serverLastAccrualAtRef = useRef<Date | null>(null);
   const activationInfoRef = useRef<{
     activatedAtMs: number;
     serverLastClaimAt: Date | null;
@@ -70,9 +72,9 @@ export function useRewards(walletAddress: string | null): RewardsState {
       return Number(basePending.toFixed(6));
     }
 
-    // Add new earnings accumulated since last_claim_at
+    // Add new earnings accumulated since last_accrual_at (server-authoritative)
     // Use server's timestamp to avoid client/server time discrepancies
-    const timestampToUse = serverLastClaimAt || lastClaimAt;
+    const timestampToUse = serverLastAccrualAt || lastClaimAt;
 
     // Only add earnings if ROI > 0 AND we're not refreshing
     if (timestampToUse && totalRoiPerDay > 0) {
@@ -92,22 +94,22 @@ export function useRewards(walletAddress: string | null): RewardsState {
     // Round to 6 decimal places for display precision
     // This matches backend's NUMERIC(30, 10) precision
     return Number(basePending.toFixed(6));
-  }, [displayPendingEarnings, lastClaimAt, serverLastClaimAt, totalRoiPerDay]);
+  }, [displayPendingEarnings, lastClaimAt, serverLastAccrualAt, totalRoiPerDay]);
 
   // Calculate CLAIMABLE earnings for claim validation
   // CRITICAL: This must match what the backend will calculate EXACTLY.
   // Backend compares against: pending_earnings + (now - last_claim_at) * (currentROI / 86400)
   // (NOT total_claimed_points)
   const calculateClaimable = useCallback((): number => {
-    const authoritativeLastClaimAt = serverLastClaimAt || lastClaimAt;
+    const authoritativeLastAccrualAt = serverLastAccrualAt || lastClaimAt;
 
-    if (!authoritativeLastClaimAt) {
+    if (!authoritativeLastAccrualAt) {
       return Number(pendingEarnings.toFixed(6));
     }
 
     const now = Date.now();
-    const lastClaimTime = authoritativeLastClaimAt.getTime();
-    const elapsedMs = now - lastClaimTime;
+    const lastAccrualTime = authoritativeLastAccrualAt.getTime();
+    const elapsedMs = now - lastAccrualTime;
 
     let totalPending = pendingEarnings;
 
@@ -119,7 +121,7 @@ export function useRewards(walletAddress: string | null): RewardsState {
     }
 
     return Number(totalPending.toFixed(6));
-  }, [pendingEarnings, totalRoiPerDay, serverLastClaimAt, lastClaimAt]);
+  }, [pendingEarnings, totalRoiPerDay, serverLastAccrualAt, lastClaimAt]);
 
   // Get current calculated CLAIMABLE earnings for backend validation
   const getCalculatedValue = useCallback((): number => {
@@ -206,6 +208,9 @@ export function useRewards(walletAddress: string | null): RewardsState {
       const newServerLastClaimAt = data.last_claim_at
         ? new Date(data.last_claim_at)
         : null;
+      const newServerLastAccrualAt = data.last_accrual_at
+        ? new Date(data.last_accrual_at)
+        : null;
       const newNextClaimAt = data.next_claim_at ? new Date(data.next_claim_at) : null;
 
       // If backend doesn't return last_claim_at but ROI is active, initialize a local timestamp
@@ -265,9 +270,11 @@ export function useRewards(walletAddress: string | null): RewardsState {
       setPendingEarnings(newPendingEarnings);
       setDisplayPendingEarnings(adjustedPendingEarnings);
       setServerLastClaimAt(newServerLastClaimAt);
+      setServerLastAccrualAt(newServerLastAccrualAt);
       setNextClaimAt(newNextClaimAt);
       setLastClaimAt(normalizedLastClaimAt);
       serverLastClaimAtRef.current = newServerLastClaimAt;
+      serverLastAccrualAtRef.current = newServerLastAccrualAt;
 
       // Update display IMMEDIATELY with backend's authoritative value
       // This prevents delays and ghost earnings
@@ -335,8 +342,10 @@ export function useRewards(walletAddress: string | null): RewardsState {
     // Optimistic update - actual values come from server
     const now = new Date();
     setLastClaimAt(now);
-    setServerLastClaimAt(now); // Also update server timestamp for claim calculation
+    setServerLastClaimAt(now); // Claim cooldown baseline
+    setServerLastAccrualAt(now); // Earnings baseline
     serverLastClaimAtRef.current = now;
+    serverLastAccrualAtRef.current = now;
     setLivePoints(0); // Reset display to 0 immediately
     currentLivePointsRef.current = 0; // Update ref
     setPendingEarnings(0); // Clear pending earnings optimistically
@@ -493,8 +502,10 @@ export function useRewards(walletAddress: string | null): RewardsState {
       setTotalClaimedPoints(0);
       setLastClaimAt(null);
       setServerLastClaimAt(null);
+      setServerLastAccrualAt(null);
       setNextClaimAt(null);
       serverLastClaimAtRef.current = null;
+      serverLastAccrualAtRef.current = null;
       setError(null);
       setPendingEarnings(0);
       setDisplayPendingEarnings(0);
