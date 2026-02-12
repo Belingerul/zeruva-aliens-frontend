@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import DynamicStarfield from "./DynamicStarfield";
@@ -86,6 +86,7 @@ export default function SpaceshipPanel({
 
   const [expedition, setExpedition] = useState<any>(null);
   const [expeditionWorking, setExpeditionWorking] = useState(false);
+  const [expeditionTick, setExpeditionTick] = useState(0);
 
   const loadExpedition = async () => {
     try {
@@ -100,6 +101,42 @@ export default function SpaceshipPanel({
   useEffect(() => {
     if (publicKey) loadExpedition();
   }, [publicKey]);
+
+  const expeditionSecondsLeft = useMemo(() => {
+    if (!expedition?.expedition_active || !expedition?.expedition_ends_at) return 0;
+    const ms = new Date(expedition.expedition_ends_at).getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / 1000));
+  }, [expedition?.expedition_active, expedition?.expedition_ends_at, expeditionTick]);
+
+  const expeditionTimerLabel = useMemo(() => {
+    const s = expeditionSecondsLeft;
+    const hh = Math.floor(s / 3600);
+    const mm = Math.floor((s % 3600) / 60);
+    const ss = s % 60;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+  }, [expeditionSecondsLeft]);
+
+  useEffect(() => {
+    if (!expedition?.expedition_active) return;
+
+    const id = window.setInterval(() => {
+      setExpeditionTick((t) => t + 1);
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [expedition?.expedition_active]);
+
+  // When timer hits zero, pull fresh status and refresh rewards so ROI flips back to 0.
+  useEffect(() => {
+    if (!expedition?.expedition_active) return;
+    if (expeditionSecondsLeft !== 0) return;
+
+    // Avoid spamming: only run on transition to 0
+    loadExpedition();
+    if (onRoiChange) onRoiChange();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expeditionSecondsLeft, expedition?.expedition_active]);
 
   const handleStartExpedition = async () => {
     if (!publicKey || expeditionWorking) return;
@@ -212,7 +249,7 @@ export default function SpaceshipPanel({
             {expeditionWorking
               ? "Starting Expedition…"
               : expedition?.expedition_active
-                ? "Expedition Active (6h)"
+                ? `Expedition: ${expeditionTimerLabel}`
                 : "Start Expedition (6h)"}
           </motion.button>
 
