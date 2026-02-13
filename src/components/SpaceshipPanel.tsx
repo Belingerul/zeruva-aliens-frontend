@@ -122,12 +122,21 @@ export default function SpaceshipPanel({
   const [expedition, setExpedition] = useState<any>(null);
   const [expeditionWorking, setExpeditionWorking] = useState(false);
   const [expeditionTick, setExpeditionTick] = useState(0);
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
 
   const loadExpedition = async () => {
     try {
       const { getExpeditionStatus } = await import("../api");
-      const st = await getExpeditionStatus();
+      const st: any = await getExpeditionStatus();
       setExpedition(st);
+
+      // If backend sends its current time, use it to compensate for client clock skew (common on phones).
+      if (st?.server_ts) {
+        const serverNow = new Date(st.server_ts).getTime();
+        if (Number.isFinite(serverNow)) {
+          setServerOffsetMs(serverNow - Date.now());
+        }
+      }
     } catch {
       // ignore
     }
@@ -149,9 +158,11 @@ export default function SpaceshipPanel({
 
   const expeditionSecondsLeft = useMemo(() => {
     if (!expedition?.expedition_active || !expedition?.expedition_ends_at) return 0;
-    const ms = new Date(expedition.expedition_ends_at).getTime() - Date.now();
+    const endsAt = new Date(expedition.expedition_ends_at).getTime();
+    const now = Date.now() + (serverOffsetMs || 0);
+    const ms = endsAt - now;
     return Math.max(0, Math.ceil(ms / 1000));
-  }, [expedition?.expedition_active, expedition?.expedition_ends_at, expeditionTick]);
+  }, [expedition?.expedition_active, expedition?.expedition_ends_at, expeditionTick, serverOffsetMs]);
 
   const expeditionTimerLabel = useMemo(() => {
     const s = expeditionSecondsLeft;

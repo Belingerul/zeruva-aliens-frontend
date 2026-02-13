@@ -24,6 +24,8 @@ export interface Ship {
 }
 
 export interface ExpeditionStatus {
+  ok?: boolean;
+  server_ts?: string;
   expedition_active: boolean;
   expedition_started_at: string | null;
   expedition_ends_at: string | null;
