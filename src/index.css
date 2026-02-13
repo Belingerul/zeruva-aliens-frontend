@@ -11,3 +11,19 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Wallet adapter UI tweaks (mobile readability) */
+.wallet-adapter-button {
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+@media (max-width: 480px) {
+  .wallet-adapter-button {
+    font-size: 12px;
+    padding: 8px 10px;
+    max-width: 46vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
