@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import ConfirmModal from "./ConfirmModal";
 import {
   getUserAliens,
   assignSlot,
@@ -31,6 +32,30 @@ export default function AlienMenu({
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
   const [ship, setShip] = useState<ShipWithSlots | null>(null);
+
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorTitle, setErrorTitle] = useState("Action blocked");
+  const [errorMessage, setErrorMessage] = useState<string>("");
+
+  function showThemedError(title: string, message: string) {
+    setErrorTitle(title);
+    setErrorMessage(message);
+    setErrorOpen(true);
+  }
+
+  function extractApiErrorMessage(err: any): string {
+    const raw = String(err?.message || err || "");
+    // Matches our apiRequest() error format: "API Error: 400 - {..json..}" or "API Error: 400 - text"
+    const m = raw.match(/API Error:\s*\d+\s*-\s*(.*)$/s);
+    const payload = (m?.[1] || raw).trim();
+    try {
+      const j = JSON.parse(payload);
+      if (j?.error) return String(j.error);
+      return payload;
+    } catch {
+      return payload;
+    }
+  }
 
   const loadData = useCallback(async () => {
     if (wallet.connected && wallet.publicKey) {
@@ -62,12 +87,12 @@ export default function AlienMenu({
 
   const handleAssignToShip = async (alien: AlienWithStats) => {
     if (!wallet.publicKey) {
-      alert("Please connect your wallet first!");
+      showThemedError("Wallet not connected", "Please connect your wallet first.");
       return;
     }
 
     if (!ship) {
-      alert("Unable to load ship data");
+      showThemedError("Ship not loaded", "Unable to load ship data. Please refresh and try again.");
       return;
     }
 
@@ -84,8 +109,9 @@ export default function AlienMenu({
     }
 
     if (firstFreeIndex === null) {
-      alert(
-        "All ship slots are full! Please unassign an alien first or upgrade your ship.",
+      showThemedError(
+        "No free slots",
+        "All ship slots are full. Unassign an alien or upgrade your ship.",
       );
       return;
     }
@@ -105,7 +131,15 @@ export default function AlienMenu({
       }
     } catch (err) {
       console.error("Failed to assign alien:", err);
-      alert("Failed to assign alien. Please try again.");
+      const msg = extractApiErrorMessage(err);
+      if (/expedition/i.test(msg)) {
+        showThemedError(
+          "Expedition active",
+          "You can’t assign/unassign aliens while an expedition is active. Wait until it ends.",
+        );
+      } else {
+        showThemedError("Assign failed", msg || "Failed to assign alien. Please try again.");
+      }
     } finally {
       setAssigning(false);
     }
@@ -136,7 +170,18 @@ export default function AlienMenu({
   }
 
   return (
-    <div className="flex-[1.25] rounded-xl p-6 bg-black/60 backdrop-blur-sm border border-gray-800 flex flex-col h-auto lg:h-full min-h-0">
+    <>
+      <ConfirmModal
+        open={errorOpen}
+        title={errorTitle}
+        subtitle={errorMessage}
+        primaryText="OK"
+        onPrimary={() => setErrorOpen(false)}
+        onSecondary={() => setErrorOpen(false)}
+        secondaryText={null}
+      />
+
+      <div className="flex-[1.25] rounded-xl p-6 bg-black/60 backdrop-blur-sm border border-gray-800 flex flex-col h-auto lg:h-full min-h-0">
       <div className="mb-4">
         <h2 className="text-2xl font-bold text-white mb-1">My Aliens</h2>
         <p className="text-sm text-gray-400">
@@ -218,5 +263,6 @@ export default function AlienMenu({
         )}
       </div>
     </div>
+    </>
   );
 }

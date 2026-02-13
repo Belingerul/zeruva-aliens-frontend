@@ -94,7 +94,7 @@ export default function LeftPanel({
   const isDisabled = !wallet.connected;
 
   return (
-    <div className="w-full lg:w-96 xl:w-[26rem] rounded-xl p-6 bg-black/60 backdrop-blur-sm border border-gray-800 h-auto lg:h-full lg:self-stretch flex flex-col gap-4 overflow-hidden">
+    <div className="w-full lg:w-96 xl:w-[26rem] rounded-xl p-5 lg:p-4 bg-black/60 backdrop-blur-sm border border-gray-800 h-auto lg:h-full lg:self-stretch flex flex-col gap-3 overflow-hidden">
       {/* Spin Section */}
       <div>
         <h3 className="font-semibold mb-4 text-gray-100 text-lg">
@@ -228,7 +228,7 @@ export default function LeftPanel({
       />
 
       {wallet.connected && wallet.publicKey && (
-        <div className="mt-auto text-sm text-cyan-200 bg-black/40 rounded-xl p-3 border border-gray-700">
+        <div className="mt-auto text-xs text-cyan-200 bg-black/40 rounded-xl p-2.5 border border-gray-700">
           <div className="font-semibold mb-2">Connected</div>
           <div className="flex items-center gap-2">
             <div className="font-mono text-base flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">

@@ -21,10 +21,10 @@ export default function ConfirmModal({
   primaryText: string;
   primaryDisabled?: boolean;
   onPrimary: () => void | Promise<void>;
-  secondaryText?: string;
+  secondaryText?: string | null;
   secondaryDisabled?: boolean;
   onSecondary: () => void;
-}) {
+}) { 
   if (!open) return null;
 
   return (
@@ -47,13 +47,15 @@ export default function ConfirmModal({
           >
             {primaryText}
           </button>
-          <button
-            onClick={onSecondary}
-            disabled={secondaryDisabled}
-            className="px-4 py-3 rounded-lg border border-gray-700 text-gray-200 disabled:opacity-50"
-          >
-            {secondaryText}
-          </button>
+          {secondaryText ? (
+            <button
+              onClick={onSecondary}
+              disabled={secondaryDisabled}
+              className="px-4 py-3 rounded-lg border border-gray-700 text-gray-200 disabled:opacity-50"
+            >
+              {secondaryText}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

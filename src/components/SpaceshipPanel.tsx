@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
 import DynamicStarfield from "./DynamicStarfield";
 import SpaceshipSlot from "./SpaceshipSlot";
+import ConfirmModal from "./ConfirmModal";
 import {
   getShipWithSlots,
   unassignSlot,
@@ -25,6 +26,29 @@ export default function SpaceshipPanel({
   const [ship, setShip] = useState<ShipWithSlots | null>(null);
   const [loading, setLoading] = useState(true);
   const [unassigning, setUnassigning] = useState(false);
+
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorTitle, setErrorTitle] = useState("Action blocked");
+  const [errorMessage, setErrorMessage] = useState<string>("");
+
+  function showThemedError(title: string, message: string) {
+    setErrorTitle(title);
+    setErrorMessage(message);
+    setErrorOpen(true);
+  }
+
+  function extractApiErrorMessage(err: any): string {
+    const raw = String(err?.message || err || "");
+    const m = raw.match(/API Error:\s*\d+\s*-\s*(.*)$/s);
+    const payload = (m?.[1] || raw).trim();
+    try {
+      const j = JSON.parse(payload);
+      if (j?.error) return String(j.error);
+      return payload;
+    } catch {
+      return payload;
+    }
+  }
 
   const loadShipData = async () => {
     if (!publicKey) {
@@ -78,7 +102,15 @@ export default function SpaceshipPanel({
       }
     } catch (err) {
       console.error("Failed to unassign alien:", err);
-      alert("Failed to unassign alien. Please try again.");
+      const msg = extractApiErrorMessage(err);
+      if (/expedition/i.test(msg)) {
+        showThemedError(
+          "Expedition active",
+          "You can’t assign/unassign aliens while an expedition is active. Wait until it ends.",
+        );
+      } else {
+        showThemedError("Unassign failed", msg || "Failed to unassign alien. Please try again.");
+      }
     } finally {
       setUnassigning(false);
     }
@@ -153,7 +185,8 @@ export default function SpaceshipPanel({
       // Force a rewards refresh so ROI switches from 0 -> assigned ROI immediately
       if (onRoiChange) onRoiChange();
     } catch (e: any) {
-      alert(e?.message || "Failed to start expedition");
+      const msg = extractApiErrorMessage(e);
+      showThemedError("Failed to start expedition", msg || "Please try again.");
     } finally {
       setExpeditionWorking(false);
     }
@@ -178,7 +211,18 @@ export default function SpaceshipPanel({
   }
 
   return (
-    <div className="w-full relative overflow-hidden rounded-xl border border-cyan-500/30 bg-black/60 backdrop-blur-sm h-auto lg:h-full flex flex-col min-h-0">
+    <>
+      <ConfirmModal
+        open={errorOpen}
+        title={errorTitle}
+        subtitle={errorMessage}
+        primaryText="OK"
+        onPrimary={() => setErrorOpen(false)}
+        onSecondary={() => setErrorOpen(false)}
+        secondaryText={null}
+      />
+
+      <div className="w-full relative overflow-hidden rounded-xl border border-cyan-500/30 bg-black/60 backdrop-blur-sm h-auto lg:h-full flex flex-col min-h-0">
       <div className="absolute inset-0 opacity-30">
         <DynamicStarfield />
       </div>
@@ -259,5 +303,6 @@ export default function SpaceshipPanel({
         </div>
       </div>
     </div>
+    </>
   );
 }
