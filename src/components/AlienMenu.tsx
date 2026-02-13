@@ -137,6 +137,7 @@ export default function AlienMenu({
           "Expedition active",
           "You can’t assign/unassign aliens while an expedition is active. Wait until it ends.",
         );
+        window.dispatchEvent(new Event("zeruva_expedition_refresh"));
       } else {
         console.error("Failed to assign alien:", err);
         showThemedError("Assign failed", msg || "Failed to assign alien. Please try again.");

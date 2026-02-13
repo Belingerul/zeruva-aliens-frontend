@@ -108,6 +108,8 @@ export default function SpaceshipPanel({
           "Expedition active",
           "You can’t assign/unassign aliens while an expedition is active. Wait until it ends.",
         );
+        // Keep expedition UI in sync
+        window.dispatchEvent(new Event("zeruva_expedition_refresh"));
       } else {
         console.error("Failed to unassign alien:", err);
         showThemedError("Unassign failed", msg || "Failed to unassign alien. Please try again.");
@@ -130,6 +132,16 @@ export default function SpaceshipPanel({
       // ignore
     }
   };
+
+  // Allow other components (assign/unassign) to request an expedition status refresh.
+  useEffect(() => {
+    const handler = () => {
+      loadExpedition();
+    };
+    window.addEventListener("zeruva_expedition_refresh", handler);
+    return () => window.removeEventListener("zeruva_expedition_refresh", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicKey]);
 
   useEffect(() => {
     if (publicKey) loadExpedition();
@@ -157,7 +169,16 @@ export default function SpaceshipPanel({
       setExpeditionTick((t) => t + 1);
     }, 1000);
 
-    return () => window.clearInterval(id);
+    // Also poll status occasionally to prevent UI desync (e.g., after rejected assign/unassign attempts)
+    const poll = window.setInterval(() => {
+      loadExpedition();
+    }, 15_000);
+
+    return () => {
+      window.clearInterval(id);
+      window.clearInterval(poll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expedition?.expedition_active]);
 
   // When timer hits zero, pull fresh status and refresh rewards so ROI flips back to 0.

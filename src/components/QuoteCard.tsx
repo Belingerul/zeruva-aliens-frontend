@@ -41,7 +41,7 @@ export default function QuoteCard({
   }, [price?.solUsd, nextUpgradeUsd]);
 
   return (
-    <div className="w-full rounded-xl p-3 bg-black/60 border border-gray-800">
+    <div className="w-full rounded-xl p-2.5 bg-black/60 border border-gray-800">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-lg font-extrabold text-gray-100 leading-none">

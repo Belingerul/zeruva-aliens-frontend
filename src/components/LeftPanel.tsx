@@ -97,7 +97,7 @@ export default function LeftPanel({
     <div className="w-full lg:w-96 xl:w-[26rem] rounded-xl p-5 lg:p-4 bg-black/60 backdrop-blur-sm border border-gray-800 h-auto lg:h-full lg:self-stretch flex flex-col gap-3 overflow-hidden">
       {/* Spin Section */}
       <div>
-        <h3 className="font-semibold mb-4 text-gray-100 text-lg">
+        <h3 className="font-extrabold mb-2 text-gray-100 text-xl tracking-tight">
           Spin an Egg
         </h3>
         <button
@@ -112,7 +112,7 @@ export default function LeftPanel({
       {/* Spaceship Section */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-gray-100 text-lg">Spaceship</h3>
+          <h3 className="font-extrabold text-gray-100 text-xl tracking-tight">Spaceship</h3>
           <div className="text-xs text-gray-400">
             {shipLoading ? "Loading…" : shipError ? "" : `Lv ${currentLevel}`}
           </div>
