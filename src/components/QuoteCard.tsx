@@ -41,7 +41,7 @@ export default function QuoteCard({
   }, [price?.solUsd, nextUpgradeUsd]);
 
   return (
-    <div className="w-full rounded-xl p-5 bg-black/60 border border-gray-800">
+    <div className="w-full rounded-xl p-3 bg-black/60 border border-gray-800">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-lg font-extrabold text-gray-100 leading-none">
@@ -58,15 +58,15 @@ export default function QuoteCard({
 
       {error && <div className="text-xs text-red-400 mt-3">{error}</div>}
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-gray-800 bg-black/40 p-3">
           <div className="text-xs text-gray-400">SOL / USD</div>
           <div className="mt-1 text-2xl font-bold text-cyan-300">
             {price ? Number(price.solUsd).toFixed(2) : "…"}
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-800 bg-black/40 p-4">
+        <div className="rounded-xl border border-gray-800 bg-black/40 p-3">
           <div className="text-xs text-gray-400">Next Ship Upgrade</div>
           <div className="mt-1 text-2xl font-bold text-gray-100">
             ${nextUpgradeUsd.toFixed(2)}

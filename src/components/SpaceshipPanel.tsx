@@ -101,14 +101,15 @@ export default function SpaceshipPanel({
         onAlienUnassigned();
       }
     } catch (err) {
-      console.error("Failed to unassign alien:", err);
       const msg = extractApiErrorMessage(err);
-      if (/expedition/i.test(msg)) {
+      if (/Cannot change assignments during expedition/i.test(msg) || /expedition/i.test(msg)) {
+        // Expected rejection from backend while expedition is active — don't spam console.
         showThemedError(
           "Expedition active",
           "You can’t assign/unassign aliens while an expedition is active. Wait until it ends.",
         );
       } else {
+        console.error("Failed to unassign alien:", err);
         showThemedError("Unassign failed", msg || "Failed to unassign alien. Please try again.");
       }
     } finally {

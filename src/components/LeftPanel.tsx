@@ -231,7 +231,7 @@ export default function LeftPanel({
         <div className="mt-auto text-xs text-cyan-200 bg-black/40 rounded-xl p-2.5 border border-gray-700">
           <div className="font-semibold mb-2">Connected</div>
           <div className="flex items-center gap-2">
-            <div className="font-mono text-base flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+            <div className="font-mono text-lg flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
               {wallet.publicKey.toBase58()}
             </div>
             <button
