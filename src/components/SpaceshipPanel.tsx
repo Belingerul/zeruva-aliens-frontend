@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { ensureAuth } from "../utils/ensureAuth";
 import DynamicStarfield from "./DynamicStarfield";
 import SpaceshipSlot from "./SpaceshipSlot";
 import ConfirmModal from "./ConfirmModal";
@@ -22,7 +23,8 @@ export default function SpaceshipPanel({
   onAlienUnassigned,
   onRoiChange,
 }: SpaceshipPanelProps) {
-  const { publicKey } = useWallet();
+  const wallet = useWallet();
+  const { publicKey } = wallet;
   const [ship, setShip] = useState<ShipWithSlots | null>(null);
   const [loading, setLoading] = useState(true);
   const [unassigning, setUnassigning] = useState(false);
@@ -137,8 +139,38 @@ export default function SpaceshipPanel({
           setServerOffsetMs(serverNow - Date.now());
         }
       }
-    } catch {
-      // ignore
+    } catch (e: any) {
+      const msg = String(e?.message || "");
+
+      // If we can't fetch status (often because the JWT is missing/expired on mobile),
+      // try to re-auth once (Phantom signMessage) and retry.
+      if (/API Error:\s*(401|403)\b|Missing Bearer token|Unauthorized|Forbidden/i.test(msg)) {
+        try {
+          await ensureAuth(wallet as any);
+          const { getExpeditionStatus } = await import("../api");
+          const st2: any = await getExpeditionStatus();
+          setExpedition(st2);
+          if (st2?.server_ts) {
+            const serverNow = new Date(st2.server_ts).getTime();
+            if (Number.isFinite(serverNow)) {
+              setServerOffsetMs(serverNow - Date.now());
+            }
+          }
+          return;
+        } catch {
+          // fall through to clearing state
+        }
+
+        // Don't leave the UI stuck showing "Expedition: 00:00:00" forever.
+        setExpedition({
+          ok: false,
+          expedition_active: false,
+          expedition_started_at: null,
+          expedition_ends_at: null,
+          expedition_planet: null,
+        });
+        setServerOffsetMs(0);
+      }
     }
   };
 
